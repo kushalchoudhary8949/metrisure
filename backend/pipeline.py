@@ -13,8 +13,14 @@ from rules import get_active_rules, SEVERITY_WEIGHT, REVIEW_THRESHOLD
 
 FIELD_PATTERNS = {
     "net_quantity": r"(net\s?(qty|quantity|weight|wt)\.?\s*[:\-]?\s*)?(\d+(\.\d+)?\s?(g|kg|ml|l|litre|liter|gm|gram|kilogram)\b)",
-    "mrp": r"(mrp[:\-]?\s*)?(rs\.?|inr|₹)\s?\d+(\.\d{1,2})?",
-    "manufacturing_date": r"(mfg|mfd|manufactured|packed|pkd)[.:\s]*(date)?[:\-\s]*((\d{1,2}[/\-])?\d{4}|(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s?\d{2,4})",
+    "mrp": [
+        r"(?:m\.?\s*r\.?\s*p\.?|mrp|map)\s*[:\-]?\s*(?:(?:rs|inr)\.?\s*|₹\s*)\d+(?:[.,]\d{1,2})?",
+        r"(?:rs|inr)\.?\s*\d+(?:[.,]\d{1,2})?",
+    ],
+    "manufacturing_date": [
+        r"(?:mfg|mfd|manufactur(?:ed|ing)|packed|pkd)[.:\s]*(?:date|dete|dt)?[:\-\s]*((?:\d{1,2}\s*[/\-]\s*)?\d{4}|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s?\d{2,4})",
+        r"date\s+of\s+(?:manufacture|manufacturing|packing)[:\-\s]*((?:\d{1,2}\s*[/\-]\s*)?\d{4}|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s?\d{2,4})",
+    ],
     "best_before": r"(best\s?before|use\s?by|exp(iry)?)[.:\s]*((\d{1,2}[/\-])?\d{4}|\d+\s?(months|days|years))",
     "consumer_care": r"(consumer\s?care|customer\s?care|helpline|toll[\s\-]?free|contact\s?us)[^\n]{0,60}",
     "country_of_origin": r"(country\s?of\s?origin|made\s?in|origin)[:\-\s]*([a-z\s]{3,20})",
@@ -102,8 +108,18 @@ def extract_fields(raw_text: str, avg_conf: float):
     text_lower = raw_text.lower()
     fields = {}
 
-    for field, pattern in FIELD_PATTERNS.items():
-        m = re.search(pattern, text_lower, re.IGNORECASE)
+    for field, patterns in FIELD_PATTERNS.items():
+        if isinstance(patterns, str):
+            patterns = [patterns]
+        m = next(
+            (
+                match
+                for pattern in patterns
+                for match in [re.search(pattern, text_lower, re.IGNORECASE)]
+                if match
+            ),
+            None,
+        )
         if m:
             value = m.group(0).strip(" :-\t")
             # per-field confidence: blend OCR avg confidence with a small penalty
