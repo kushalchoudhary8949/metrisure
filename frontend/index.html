@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MetriSure — Legal Metrology Compliance Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<style>
+  :root{
+    --ink:#0F1B2D;
+    --ink-2:#16233A;
+    --slate:#5B6472;
+    --slate-light:#8A93A3;
+    --page-bg:#F4F6F9;
+    --card:#FFFFFF;
+    --border:#E2E6ED;
+    --border-strong:#CBD2DE;
+    --accent:#1E4E8C;
+    --accent-hover:#2A63AC;
+    --accent-bg:#E9F0F9;
+    --success:#15803D;
+    --success-bg:#E7F6EC;
+    --danger:#B91C1C;
+    --danger-bg:#FDECEC;
+    --warning:#B45309;
+    --warning-bg:#FEF3E2;
+    --sans: 'IBM Plex Sans', -apple-system, sans-serif;
+    --mono: 'IBM Plex Mono', 'SFMono-Regular', monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--page-bg);font-family:var(--sans);color:var(--ink);}
+  #root{min-height:100vh;}
+  ::selection{background:var(--accent-bg);}
+  button{font-family:var(--sans);cursor:pointer;}
+  table{border-collapse:collapse;width:100%;}
+  a{color:var(--accent);}
+  .mono{font-family:var(--mono);}
+  .scrollbar-thin::-webkit-scrollbar{width:8px;height:8px;}
+  .scrollbar-thin::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:4px;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+  .fade-in{animation:fadeIn .3s ease both;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .spin{animation:spin 0.9s linear infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+  .pulse{animation:pulse 1.3s ease-in-out infinite;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+const {useState, useEffect, useRef, useCallback} = React;
+
+const API_BASE = window.location.origin;
+
+// ---------- Icons (tiny inline SVGs, no external icon deps) ----------
+const Icon = {
+  dashboard: (p) => <svg viewBox="0 0 24 24" width={p.s||18} height={p.s||18} fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>,
+  scan: (p) => <svg viewBox="0 0 24 24" width={p.s||18} height={p.s||18} fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M3 7V4a1 1 0 0 1 1-1h3M21 7V4a1 1 0 0 0-1-1h-3M3 17v3a1 1 0 0 0 1 1h3M21 17v3a1 1 0 0 1-1 1h-3"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>,
+  history: (p) => <svg viewBox="0 0 24 24" width={p.s||18} height={p.s||18} fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>,
+  rules: (p) => <svg viewBox="0 0 24 24" width={p.s||18} height={p.s||18} fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M9 2h6l1 3h3a1 1 0 0 1 1 1v1H4V6a1 1 0 0 1 1-1h3l1-3Z"/><path d="M5 8l1.5 12.5A1 1 0 0 0 7.5 21h9a1 1 0 0 0 1-1.5L19 8"/></svg>,
+  upload: (p) => <svg viewBox="0 0 24 24" width={p.s||22} height={p.s||22} fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>,
+  check: (p) => <svg viewBox="0 0 24 24" width={p.s||16} height={p.s||16} fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M4 12l5 5L20 6"/></svg>,
+  cross: (p) => <svg viewBox="0 0 24 24" width={p.s||16} height={p.s||16} fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M6 6l12 12M18 6L6 18"/></svg>,
+  alert: (p) => <svg viewBox="0 0 24 24" width={p.s||16} height={p.s||16} fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.86 1.8 18a1 1 0 0 0 .86 1.5h18.7a1 1 0 0 0 .86-1.5L13.7 3.86a1 1 0 0 0-1.7 0Z"/></svg>,
+  download: (p) => <svg viewBox="0 0 24 24" width={p.s||16} height={p.s||16} fill="none" stroke="currentColor" strokeWidth="1.9"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 19h16"/></svg>,
+  gauge: (p) => <svg viewBox="0 0 24 24" width={p.s||18} height={p.s||18} fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 20a8 8 0 1 0-8-8"/><path d="M12 12l4-3M4 12H2M12 2v2M22 12h-2"/></svg>,
+};
+
+// ---------- Layout ----------
+const NAV_ITEMS = [
+  {key:'dashboard', label:'Dashboard', icon:Icon.dashboard},
+  {key:'scan', label:'Scan product', icon:Icon.scan},
+  {key:'history', label:'Inspection history', icon:Icon.history},
+  {key:'rules', label:'Rule engine', icon:Icon.rules},
+];
+
+function Sidebar({page, setPage}) {
+  return (
+    <div style={{width:240, minHeight:'100vh', background:'var(--ink)', color:'#fff', position:'fixed', left:0, top:0, display:'flex', flexDirection:'column'}}>
+      <div style={{padding:'26px 24px 20px'}}>
+        <div style={{fontSize:20, fontWeight:700, letterSpacing:'-0.02em'}}>MetriSure</div>
+        <div style={{fontSize:12.5, color:'#8FA3C2', marginTop:3}}>Legal metrology compliance</div>
+      </div>
+      <nav style={{marginTop:8, flex:1}}>
+        {NAV_ITEMS.map(item => {
+          const active = page===item.key;
+          return (
+            <div key={item.key} onClick={()=>setPage(item.key)}
+              style={{
+                display:'flex', alignItems:'center', gap:12,
+                padding:'11px 24px', cursor:'pointer', fontSize:14.5,
+                color: active ? '#fff' : '#B7C2D6',
+                background: active ? 'rgba(255,255,255,0.08)' : 'transparent',
+                borderLeft: active ? '3px solid #4C8DFF' : '3px solid transparent',
+                fontWeight: active ? 600 : 400,
+                transition:'background .15s'
+              }}>
+              <item.icon s={17} />
+              {item.label}
+            </div>
+          );
+        })}
+      </nav>
+      <div style={{padding:'18px 24px', fontSize:11.5, color:'#5E6E88', borderTop:'1px solid rgba(255,255,255,0.08)'}}>
+        SIH26034 &middot; Prototype build
+      </div>
+    </div>
+  );
+}
+
+function PageHeader({title, subtitle, right}) {
+  return (
+    <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginBottom:24}}>
+      <div>
+        <h1 style={{fontSize:22, fontWeight:600, margin:0}}>{title}</h1>
+        {subtitle && <p style={{fontSize:14, color:'var(--slate)', margin:'6px 0 0'}}>{subtitle}</p>}
+      </div>
+      {right}
+    </div>
+  );
+}
+
+function StatusPill({status}) {
+  const map = {
+    COMPLIANT: {bg:'var(--success-bg)', fg:'var(--success)', label:'Compliant'},
+    NON_COMPLIANT: {bg:'var(--danger-bg)', fg:'var(--danger)', label:'Non-compliant'},
+    REVIEW_REQUIRED: {bg:'var(--warning-bg)', fg:'var(--warning)', label:'Review required'},
+  };
+  const s = map[status] || {bg:'#EEE', fg:'#666', label:status};
+  return <span style={{background:s.bg, color:s.fg, fontSize:12.5, fontWeight:600, padding:'4px 11px', borderRadius:20}}>{s.label}</span>;
+}
+
+// ---------- Dashboard ----------
+function Dashboard({goScan, openInspection}) {
+  const [stats, setStats] = useState(null);
+  const [err, setErr] = useState(null);
+
+  useEffect(() => {
+    fetch(API_BASE + '/api/dashboard').then(r=>r.json()).then(setStats).catch(e=>setErr(String(e)));
+  }, []);
+
+  const cards = stats ? [
+    {label:'Total scans', value: stats.total_scans, color:'var(--ink)'},
+    {label:'Compliant', value: stats.compliant, color:'var(--success)'},
+    {label:'Non-compliant', value: stats.non_compliant, color:'var(--danger)'},
+    {label:'Needs review', value: stats.review_required, color:'var(--warning)'},
+  ] : [];
+
+  return (
+    <div className="fade-in">
+      <PageHeader title="Dashboard" subtitle="Officer overview of packaged-commodity label compliance scans"
+        right={<button onClick={goScan} style={btnPrimary}>{Icon.scan({s:15})}&nbsp;&nbsp;New scan</button>} />
+
+      {err && <ErrorBanner msg={err} />}
+
+      <div style={{display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:16, marginBottom:28}}>
+        {(stats ? cards : [1,2,3,4]).map((c, i) => (
+          <div key={i} style={card}>
+            {stats ? (
+              <React.Fragment>
+                <div style={{fontSize:13, color:'var(--slate)', marginBottom:8}}>{c.label}</div>
+                <div className="mono" style={{fontSize:30, fontWeight:600, color:c.color}}>{c.value}</div>
+              </React.Fragment>
+            ) : <div style={{height:52}} className="pulse" />}
+          </div>
+        ))}
+      </div>
+
+      <div style={card}>
+        <div style={{fontSize:15, fontWeight:600, marginBottom:14}}>Recent inspections</div>
+        {!stats && <div className="pulse" style={{color:'var(--slate)', fontSize:14}}>Loading…</div>}
+        {stats && stats.recent_inspections.length === 0 && (
+          <EmptyState text="No inspections yet. Run a scan to see it appear here." action={{label:'Scan a product', onClick:goScan}} />
+        )}
+        {stats && stats.recent_inspections.length > 0 && (
+          <InspectionTable rows={stats.recent_inspections} onOpen={openInspection} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function InspectionTable({rows, onOpen}) {
+  return (
+    <table>
+      <thead>
+        <tr style={{textAlign:'left', fontSize:12.5, color:'var(--slate)', borderBottom:'1px solid var(--border)'}}>
+          <th style={{padding:'0 0 10px', fontWeight:500}}>ID</th>
+          <th style={{padding:'0 0 10px', fontWeight:500}}>Product</th>
+          <th style={{padding:'0 0 10px', fontWeight:500}}>Date</th>
+          <th style={{padding:'0 0 10px', fontWeight:500}}>Score</th>
+          <th style={{padding:'0 0 10px', fontWeight:500}}>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map(r => (
+          <tr key={r.id} onClick={()=>onOpen(r.id)} style={{borderBottom:'1px solid var(--border)', cursor:'pointer'}}
+            onMouseEnter={e=>e.currentTarget.style.background='var(--page-bg)'}
+            onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+            <td className="mono" style={{padding:'11px 0', fontSize:13.5, color:'var(--slate)'}}>#{r.id}</td>
+            <td style={{padding:'11px 0', fontSize:14}}>{r.product_name}</td>
+            <td className="mono" style={{padding:'11px 0', fontSize:12.5, color:'var(--slate)'}}>{new Date(r.created_at+'Z').toLocaleString()}</td>
+            <td className="mono" style={{padding:'11px 0', fontSize:14, fontWeight:600}}>{r.score}%</td>
+            <td style={{padding:'11px 0'}}><StatusPill status={r.status} /></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function EmptyState({text, action}) {
+  return (
+    <div style={{textAlign:'center', padding:'32px 0', color:'var(--slate)'}}>
+      <div style={{fontSize:14, marginBottom:14}}>{text}</div>
+      {action && <button onClick={action.onClick} style={btnSecondary}>{action.label}</button>}
+    </div>
+  );
+}
+
+function ErrorBanner({msg}) {
+  return (
+    <div style={{background:'var(--danger-bg)', color:'var(--danger)', padding:'12px 16px', borderRadius:8, fontSize:13.5, marginBottom:20, display:'flex', alignItems:'center', gap:8}}>
+      {Icon.alert({s:16})} Could not reach the MetriSure API at {API_BASE}. Is the backend running? ({msg})
+    </div>
+  );
+}
+
+// ---------- Scan Product ----------
+const DEMOS = [
+  {file:'1_compliant_label.jpg', name:'Compliant label', desc:'All mandatory declarations present and legible', tint:'var(--success)'},
+  {file:'2_missing_declaration.jpg', name:'Missing declarations', desc:'Country of origin, consumer care & unit price absent', tint:'var(--danger)'},
+  {file:'3_low_confidence_label.jpg', name:'Low-confidence photo', desc:'Blurry / noisy capture — triggers officer review', tint:'var(--warning)'},
+];
+
+const PIPELINE_STEPS = [
+  'Preprocessing image (denoise, contrast, deskew)',
+  'Running OCR (Tesseract)',
+  'Extracting & normalizing structured fields',
+  'Evaluating versioned compliance rules',
+  'Generating result',
+];
+
+function ScanProduct({onResult}) {
+  const [preview, setPreview] = useState(null);
+  const [file, setFile] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [stepIdx, setStepIdx] = useState(-1);
+  const [err, setErr] = useState(null);
+  const [dragOver, setDragOver] = useState(false);
+  const inputRef = useRef(null);
+  const stepTimer = useRef(null);
+
+  const setImageFile = (f) => {
+    if (!f) return;
+    setFile(f);
+    setErr(null);
+    const reader = new FileReader();
+    reader.onload = (e) => setPreview(e.target.result);
+    reader.readAsDataURL(f);
+  };
+
+  const loadDemo = async (name) => {
+    setErr(null);
+    const res = await fetch('demo/' + name);
+    const blob = await res.blob();
+    const f = new File([blob], name, {type:'image/jpeg'});
+    setImageFile(f);
+  };
+
+  const runAnalysis = async () => {
+    if (!file) return;
+    setBusy(true);
+    setStepIdx(0);
+    setErr(null);
+    stepTimer.current = setInterval(() => {
+      setStepIdx(i => Math.min(i+1, PIPELINE_STEPS.length-1));
+    }, 550);
+
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch(API_BASE + '/api/analyze', {method:'POST', body:fd});
+      if (!res.ok) {
+        const t = await res.json().catch(()=>({detail:res.statusText}));
+        throw new Error(t.detail || 'Analysis failed');
+      }
+      const data = await res.json();
+      clearInterval(stepTimer.current);
+      setStepIdx(PIPELINE_STEPS.length);
+      setTimeout(() => { setBusy(false); onResult(data); }, 400);
+    } catch (e) {
+      clearInterval(stepTimer.current);
+      setBusy(false);
+      setStepIdx(-1);
+      setErr(e.message || String(e));
+    }
+  };
+
+  useEffect(() => () => clearInterval(stepTimer.current), []);
+
+  return (
+    <div className="fade-in">
+      <PageHeader title="Scan product" subtitle="Upload or capture a package image to check label compliance" />
+
+      {err && <ErrorBanner msg={err} />}
+
+      <div style={{display:'grid', gridTemplateColumns:'1.1fr 0.9fr', gap:20, alignItems:'start'}}>
+        <div style={card}>
+          <div
+            onDragOver={(e)=>{e.preventDefault(); setDragOver(true);}}
+            onDragLeave={()=>setDragOver(false)}
+            onDrop={(e)=>{e.preventDefault(); setDragOver(false); if(e.dataTransfer.files[0]) setImageFile(e.dataTransfer.files[0]);}}
+            onClick={()=>inputRef.current.click()}
+            style={{
+              border: `2px dashed ${dragOver ? 'var(--accent)' : 'var(--border-strong)'}`,
+              borderRadius:10, padding: preview ? 12 : 44, textAlign:'center', cursor:'pointer',
+              background: dragOver ? 'var(--accent-bg)' : 'transparent', transition:'all .15s'
+            }}>
+            <input ref={inputRef} type="file" accept="image/*" style={{display:'none'}}
+              onChange={e=>setImageFile(e.target.files[0])} />
+            {preview ? (
+              <img src={preview} alt="Package preview" style={{maxWidth:'100%', maxHeight:340, borderRadius:6}} />
+            ) : (
+              <React.Fragment>
+                <div style={{color:'var(--slate-light)', marginBottom:10}}>{Icon.upload({s:30})}</div>
+                <div style={{fontSize:15, fontWeight:500, marginBottom:4}}>Drop a package image here</div>
+                <div style={{fontSize:13, color:'var(--slate)'}}>or click to browse &middot; JPG / PNG</div>
+              </React.Fragment>
+            )}
+          </div>
+
+          {file && !busy && (
+            <button onClick={runAnalysis} style={{...btnPrimary, width:'100%', marginTop:16, justifyContent:'center'}}>
+              {Icon.gauge({s:16})}&nbsp;&nbsp;Run compliance check
+            </button>
+          )}
+
+          {busy && (
+            <div style={{marginTop:18}}>
+              {PIPELINE_STEPS.map((s, i) => (
+                <div key={i} style={{display:'flex', alignItems:'center', gap:10, padding:'7px 0', fontSize:13.5,
+                  color: i <= stepIdx ? 'var(--ink)' : 'var(--slate-light)'}}>
+                  <span style={{
+                    width:18, height:18, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0,
+                    background: i < stepIdx ? 'var(--success)' : i === stepIdx ? 'var(--accent)' : 'var(--border)',
+                    color: i <= stepIdx ? '#fff' : 'transparent'
+                  }}>
+                    {i < stepIdx ? Icon.check({s:11}) : i === stepIdx ? <span className="spin" style={{width:8,height:8,border:'2px solid #fff',borderTopColor:'transparent',borderRadius:'50%',display:'block'}}/> : null}
+                  </span>
+                  {s}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <div style={{...card, marginBottom:16}}>
+            <div style={{fontSize:14, fontWeight:600, marginBottom:4}}>Try a demo scenario</div>
+            <div style={{fontSize:13, color:'var(--slate)', marginBottom:14}}>For judge demonstrations — loads a pre-captured label instantly.</div>
+            {DEMOS.map(d => (
+              <div key={d.file} onClick={()=>loadDemo(d.file)}
+                style={{display:'flex', alignItems:'center', gap:10, padding:'10px 12px', borderRadius:8, border:'1px solid var(--border)', marginBottom:8, cursor:'pointer'}}
+                onMouseEnter={e=>e.currentTarget.style.borderColor='var(--border-strong)'}
+                onMouseLeave={e=>e.currentTarget.style.borderColor='var(--border)'}>
+                <span style={{width:8, height:8, borderRadius:'50%', background:d.tint, flexShrink:0}} />
+                <div>
+                  <div style={{fontSize:13.5, fontWeight:500}}>{d.name}</div>
+                  <div style={{fontSize:12, color:'var(--slate)'}}>{d.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={card}>
+            <div style={{fontSize:14, fontWeight:600, marginBottom:8}}>How this works</div>
+            <div style={{fontSize:13, color:'var(--slate)', lineHeight:1.6}}>
+              OpenCV and OCR only extract what is printed on the label. A separate, versioned
+              rule engine — not an AI model — decides pass, fail, or review. Low-confidence
+              fields are always sent for officer verification rather than treated as violations.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- Compliance Result ----------
+const STATUS_META = {
+  COMPLIANT: {color:'var(--success)', bg:'var(--success-bg)', label:'Compliant'},
+  NON_COMPLIANT: {color:'var(--danger)', bg:'var(--danger-bg)', label:'Non-compliant'},
+  REVIEW_REQUIRED: {color:'var(--warning)', bg:'var(--warning-bg)', label:'Review required'},
+};
+
+function ScoreRing({score, color}) {
+  const r = 54, c = 2*Math.PI*r;
+  const offset = c - (score/100)*c;
+  return (
+    <svg width="140" height="140" viewBox="0 0 140 140">
+      <circle cx="70" cy="70" r={r} fill="none" stroke="var(--border)" strokeWidth="10" />
+      <circle cx="70" cy="70" r={r} fill="none" stroke={color} strokeWidth="10" strokeLinecap="round"
+        strokeDasharray={c} strokeDashoffset={offset} transform="rotate(-90 70 70)"
+        style={{transition:'stroke-dashoffset 0.8s ease'}} />
+      <text x="70" y="66" textAnchor="middle" fontSize="30" fontWeight="600" fontFamily="IBM Plex Mono" fill="var(--ink)">{score}</text>
+      <text x="70" y="86" textAnchor="middle" fontSize="12" fontFamily="IBM Plex Sans" fill="var(--slate)">out of 100</text>
+    </svg>
+  );
+}
+
+function ComplianceResult({result, onBack, onViewHistory}) {
+  if (!result) return null;
+  const meta = STATUS_META[result.status] || {color:'#666', bg:'#eee', label:result.status};
+  const fails = result.rule_results.filter(r => r.outcome !== 'PASS');
+
+  return (
+    <div className="fade-in">
+      <PageHeader title="Compliance result" subtitle={`Inspection #${result.inspection_id}`}
+        right={
+          <div style={{display:'flex', gap:10}}>
+            <button style={btnSecondary} onClick={onViewHistory}>View history</button>
+            <button style={btnSecondary} onClick={onBack}>Scan another</button>
+            <a href={API_BASE + '/api/reports/' + result.inspection_id} style={{...btnPrimary, textDecoration:'none'}}>
+              {Icon.download({s:15})}&nbsp;&nbsp;Download report
+            </a>
+          </div>
+        } />
+
+      <div style={{display:'grid', gridTemplateColumns:'320px 1fr', gap:20, alignItems:'start'}}>
+        <div style={{...card, textAlign:'center'}}>
+          <ScoreRing score={result.score} color={meta.color} />
+          <div style={{marginTop:10}}>
+            <span style={{background:meta.bg, color:meta.color, fontSize:13, fontWeight:600, padding:'5px 14px', borderRadius:20}}>{meta.label}</span>
+          </div>
+          <div style={{marginTop:18, paddingTop:16, borderTop:'1px solid var(--border)', textAlign:'left', fontSize:13}}>
+            <Row k="OCR confidence" v={`${Math.round(result.ocr_avg_confidence*100)}%`} />
+            <Row k="Deskew applied" v={`${result.preprocessing.deskew_angle_deg}°`} />
+            <Row k="Fields checked" v={result.rule_results.length} />
+          </div>
+        </div>
+
+        <div>
+          <div style={{...card, marginBottom:16}}>
+            <div style={{fontSize:15, fontWeight:600, marginBottom:14}}>Declaration checklist</div>
+            {result.rule_results.map(r => <ChecklistRow key={r.rule_code} r={r} />)}
+          </div>
+
+          {fails.length > 0 && (
+            <div style={card}>
+              <div style={{fontSize:15, fontWeight:600, marginBottom:12}}>Potential issues</div>
+              {fails.map(r => (
+                <div key={r.rule_code} style={{display:'flex', gap:10, padding:'10px 0', borderBottom:'1px solid var(--border)'}}>
+                  <span style={{color: r.outcome==='REVIEW' ? 'var(--warning)' : 'var(--danger)', flexShrink:0, marginTop:2}}>
+                    {Icon.alert({s:15})}
+                  </span>
+                  <div>
+                    <div style={{fontSize:13.5, fontWeight:500}}>
+                      <span className="mono" style={{color:'var(--slate)', marginRight:6}}>{r.rule_code}</span>
+                      {r.outcome === 'REVIEW' ? 'Requires officer verification' : 'Violation'}
+                    </div>
+                    <div style={{fontSize:13, color:'var(--slate)', marginTop:2}}>{r.message || r.label}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Row({k, v}) {
+  return (
+    <div style={{display:'flex', justifyContent:'space-between', padding:'4px 0'}}>
+      <span style={{color:'var(--slate)'}}>{k}</span>
+      <span className="mono" style={{fontWeight:500}}>{v}</span>
+    </div>
+  );
+}
+
+function ChecklistRow({r}) {
+  const ok = r.outcome === 'PASS';
+  const review = r.outcome === 'REVIEW';
+  const color = ok ? 'var(--success)' : review ? 'var(--warning)' : 'var(--danger)';
+  const bg = ok ? 'var(--success-bg)' : review ? 'var(--warning-bg)' : 'var(--danger-bg)';
+  return (
+    <div style={{display:'flex', alignItems:'center', gap:12, padding:'9px 0', borderBottom:'1px solid var(--border)'}}>
+      <span style={{width:22, height:22, borderRadius:'50%', background:bg, color, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0}}>
+        {ok ? Icon.check({s:13}) : review ? Icon.alert({s:12}) : Icon.cross({s:12})}
+      </span>
+      <div style={{flex:1}}>
+        <div style={{fontSize:13.5}}>{r.label}</div>
+        {r.extracted_value && <div className="mono" style={{fontSize:12, color:'var(--slate)', marginTop:1}}>{r.extracted_value.slice(0,70)}</div>}
+      </div>
+      <span className="mono" style={{fontSize:11.5, color:'var(--slate)', flexShrink:0}}>{r.rule_code}</span>
+    </div>
+  );
+}
+
+// ---------- History ----------
+function History({onOpen, goScan}) {
+  const [rows, setRows] = useState(null);
+  const [err, setErr] = useState(null);
+
+  useEffect(() => {
+    fetch(API_BASE + '/api/inspections').then(r=>r.json()).then(d=>setRows(d.inspections)).catch(e=>setErr(String(e)));
+  }, []);
+
+  return (
+    <div className="fade-in">
+      <PageHeader title="Inspection history" subtitle="Full audit trail of past compliance scans" />
+      {err && <ErrorBanner msg={err} />}
+      <div style={card}>
+        {!rows && <div className="pulse" style={{color:'var(--slate)', fontSize:14}}>Loading…</div>}
+        {rows && rows.length === 0 && <EmptyState text="No inspections recorded yet." action={{label:'Scan a product', onClick:goScan}} />}
+        {rows && rows.length > 0 && <InspectionTable rows={rows} onOpen={onOpen} />}
+      </div>
+    </div>
+  );
+}
+
+// ---------- Rule Engine ----------
+function RuleEngine() {
+  const [rules, setRules] = useState(null);
+  const [err, setErr] = useState(null);
+
+  useEffect(() => {
+    fetch(API_BASE + '/api/rules').then(r=>r.json()).then(d=>setRules(d.rules)).catch(e=>setErr(String(e)));
+  }, []);
+
+  const sevColor = {HIGH:'var(--danger)', MEDIUM:'var(--warning)', LOW:'var(--slate)'};
+
+  return (
+    <div className="fade-in">
+      <PageHeader title="Rule engine" subtitle="Versioned, deterministic Legal Metrology rules — stored separately from any AI model" />
+      {err && <ErrorBanner msg={err} />}
+      <div style={card}>
+        {!rules && <div className="pulse" style={{color:'var(--slate)', fontSize:14}}>Loading…</div>}
+        {rules && (
+          <table>
+            <thead>
+              <tr style={{textAlign:'left', fontSize:12.5, color:'var(--slate)', borderBottom:'1px solid var(--border)'}}>
+                <th style={{padding:'0 0 10px', fontWeight:500}}>Rule</th>
+                <th style={{padding:'0 0 10px', fontWeight:500}}>Requirement</th>
+                <th style={{padding:'0 0 10px', fontWeight:500}}>Field</th>
+                <th style={{padding:'0 0 10px', fontWeight:500}}>Severity</th>
+                <th style={{padding:'0 0 10px', fontWeight:500}}>Version</th>
+                <th style={{padding:'0 0 10px', fontWeight:500}}>Effective from</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rules.map(r => (
+                <tr key={r.rule_code} style={{borderBottom:'1px solid var(--border)'}}>
+                  <td className="mono" style={{padding:'11px 0', fontSize:13, fontWeight:600}}>{r.rule_code}</td>
+                  <td style={{padding:'11px 0', fontSize:13.5, maxWidth:280}}>{r.label}</td>
+                  <td className="mono" style={{padding:'11px 0', fontSize:12.5, color:'var(--slate)'}}>{r.field}</td>
+                  <td style={{padding:'11px 0'}}>
+                    <span style={{color:sevColor[r.severity], fontSize:12.5, fontWeight:600}}>{r.severity}</span>
+                  </td>
+                  <td className="mono" style={{padding:'11px 0', fontSize:12.5, color:'var(--slate)'}}>{r.version}</td>
+                  <td className="mono" style={{padding:'11px 0', fontSize:12.5, color:'var(--slate)'}}>{r.effective_from}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+      <div style={{...card, marginTop:16, background:'var(--accent-bg)', border:'1px solid #C9DAF0'}}>
+        <div style={{fontSize:13.5, color:'var(--accent)', lineHeight:1.6}}>
+          <strong>Why this matters:</strong> when rules are amended, only this table changes — the OCR
+          and extraction pipeline is untouched. This keeps the platform auditable and maintainable
+          as regulations evolve.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- Shared styles ----------
+const card = {background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:20};
+const btnPrimary = {display:'inline-flex', alignItems:'center', background:'var(--accent)', color:'#fff', border:'none', borderRadius:8, padding:'10px 16px', fontSize:13.5, fontWeight:600};
+const btnSecondary = {display:'inline-flex', alignItems:'center', background:'#fff', color:'var(--ink)', border:'1px solid var(--border-strong)', borderRadius:8, padding:'10px 16px', fontSize:13.5, fontWeight:500};
+
+// ---------- App ----------
+function App() {
+  const [page, setPage] = useState('dashboard');
+  const [result, setResult] = useState(null);
+  const [inspectionDetail, setInspectionDetail] = useState(null);
+
+  const openInspection = async (id) => {
+    const res = await fetch(API_BASE + '/api/inspections/' + id);
+    const data = await res.json();
+    setResult({
+      inspection_id: data.id,
+      score: data.score,
+      status: data.status,
+      ocr_avg_confidence: data.ocr_confidence,
+      preprocessing: data.preprocessing,
+      rule_results: data.rule_results,
+      fields: data.fields,
+    });
+    setPage('result');
+  };
+
+  const handleAnalysisResult = (data) => {
+    setResult(data);
+    setPage('result');
+  };
+
+  let content;
+  if (page === 'dashboard') content = <Dashboard goScan={()=>setPage('scan')} openInspection={openInspection} />;
+  else if (page === 'scan') content = <ScanProduct onResult={handleAnalysisResult} />;
+  else if (page === 'result') content = <ComplianceResult result={result} onBack={()=>setPage('scan')} onViewHistory={()=>setPage('history')} />;
+  else if (page === 'history') content = <History onOpen={openInspection} goScan={()=>setPage('scan')} />;
+  else if (page === 'rules') content = <RuleEngine />;
+
+  return (
+    <React.Fragment>
+      <Sidebar page={page==='result' ? 'scan' : page} setPage={setPage} />
+      <div style={{marginLeft:240, padding:'32px 40px', maxWidth:1180}}>
+        {content}
+      </div>
+    </React.Fragment>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
